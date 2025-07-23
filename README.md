@@ -1,139 +1,193 @@
-# docker-Java-kubernetes-project
+#  Docker-Java-Kubernetes Project
 
+This project demonstrates how to containerize and deploy a set of Java microservices (Shopfront, Product Catalogue, and Stock Manager) using **Docker** and **Kubernetes (Minikube or EKS)**.
 
-INSTALL MINIKUBE 
-***********************************************************
+---
 
-KUBECTL
+## 📦 Prerequisites
+
+- Java 8+
+- Maven
+- Docker
+- Minikube (for local deployment)
+- AWS CLI & eksctl (for EKS deployment)
+- kubectl
+
+---
+
+##  Local Setup Using Minikube
+
+### 🔧 Install Minikube
+
+Follow official instructions:  
+🔗 https://minikube.sigs.k8s.io/docs/start/
+
+###  Install kubectl
+
+```bash
 curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.20.4/2021-04-12/bin/linux/amd64/kubectl
 chmod +x ./kubectl
 mkdir -p $HOME/bin
 cp ./kubectl $HOME/bin/kubectl
 export PATH=$HOME/bin:$PATH
 echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
-source $HOME/.bashrc
+source ~/.bashrc
 kubectl version --short --client
+```
 
-DOCKER
-yum install docker -y
-systemctl  start docker
-systemctl enable docker
+### 🐳 Install Docker
 
-https://minikube.sigs.k8s.io/docs/start/
-***********************************************************
+```bash
+sudo yum install docker -y
+sudo systemctl start docker
+sudo systemctl enable docker
+```
 
+---
 
+## ☁️ AWS EKS Setup
 
-INSTALL EKS SETUP
-#############################################################
-Step1: Take EC2 Instance with t2.MEDIUM instance type
-Step2: Create IAM Role with Admin policy for eks-cluster and attach to ec2-instance
-Step3: Install kubectl
+### Step 1: Launch EC2 Instance
+- Use **t2.medium** type
+- Attach **IAM Role** with **AdministratorAccess**
 
+### Step 2: Install kubectl
+
+```bash
 curl -o kubectl https://amazon-eks.s3-us-west-2.amazonaws.com/1.14.6/2019-08-22/bin/linux/amd64/kubectl
 chmod +x ./kubectl
 mkdir -p $HOME/bin
 cp ./kubectl $HOME/bin/kubectl
 export PATH=$HOME/bin:$PATH
 echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
-source $HOME/.bashrc
+source ~/.bashrc
 kubectl version --short --client
+```
 
-Step4: Install eksctl:
+### Step 3: Install eksctl
+
+```bash
 curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
 sudo mv /tmp/eksctl /usr/bin
 eksctl version
+```
 
-Step5: MASTER Cluster creation:
+### Step 4: Create EKS Cluster (Master Only)
+
+```bash
 eksctl create cluster --name=eksdemo \
-                  --region=us-west-1 \
-                  --zones=us-west-1b,us-west-1c \
-                  --without-nodegroup 
+  --region=us-west-1 \
+  --zones=us-west-1b,us-west-1c \
+  --without-nodegroup
+```
 
-Step6: Add Iam-Oidc-Providers:
+### Step 5: Associate IAM OIDC Provider
+
+```bash
 eksctl utils associate-iam-oidc-provider \
-    --region us-west-1 \
-    --cluster eksdemo \
-    --approve 
+  --region us-west-1 \
+  --cluster eksdemo \
+  --approve
+```
 
-Allowing the service to connect with EKS
+### Step 6: Create Worker Nodes
 
-
-Step7: WORKER NODE Create node-group:
+```bash
 eksctl create nodegroup --cluster=eksdemo \
-                   --region=us-west-1 \
-                   --name=eksdemo-ng-public \
-                   --node-type=t2.medium \
-                   --nodes=2 \
-                   --nodes-min=2 \
-                   --nodes-max=4 \
-                   --node-volume-size=10 \
-                   --ssh-access \
-                   --ssh-public-key=Praveen-test \
-                   --managed \
-                   --asg-access \
-                   --external-dns-access \
-                   --full-ecr-access \
-                   --appmesh-access \
-                   --alb-ingress-access	
+  --region=us-west-1 \
+  --name=eksdemo-ng-public \
+  --node-type=t2.medium \
+  --nodes=2 \
+  --nodes-min=2 \
+  --nodes-max=4 \
+  --node-volume-size=10 \
+  --ssh-access \
+  --ssh-public-key=Praveen-test \
+  --managed \
+  --asg-access \
+  --external-dns-access \
+  --full-ecr-access \
+  --appmesh-access \
+  --alb-ingress-access
+```
 
+### ⛔ Optional Cleanup Commands
 
- 
-//eksctl delete nodegroup --cluster=eksdemo --region=us-east-1 --name=eksdemo-ng-public
+```bash
+eksctl delete nodegroup --cluster=eksdemo --region=us-west-1 --name=eksdemo-ng-public
+eksctl delete cluster --name=eksdemo --region=us-west-1
+```
 
+---
 
+## 🧪 Hands-On: Deploy Java Applications on Kubernetes
 
-//eksctl delete cluster --name=eksdemo    --region=us-west-1	
+### 1️⃣ Build Maven Projects
 
+```bash
+mvn clean install -DskipTests
+```
 
+### 2️⃣ Create Docker Hub Account (if not done)
 
+- https://hub.docker.com/
 
-#############################################################
+### 3️⃣ Build Docker Images
 
+```bash
+docker build -t naveenrroy/shopfront:latest ./shopfront
+docker build -t naveenrroy/productcatalogue:latest ./productcatalogue
+docker build -t naveenrroy/stockmanager:latest ./stockmanager
+```
 
-HANDSON
+### 4️⃣ Push Docker Images to Docker Hub
 
+```bash
+docker push naveenrroy/shopfront:latest
+docker push naveenrroy/productcatalogue:latest
+docker push naveenrroy/stockmanager:latest
+```
 
-Deploying Java Applications with Docker and Kubernetes
+### 5️⃣ Apply Kubernetes Manifests
 
-1) Build each project ->> mvn clean install -DskipTests
+```bash
+kubectl apply -f kubernetes/shopfront-service.yaml
+kubectl apply -f kubernetes/productcatalogue-service.yaml
+kubectl apply -f kubernetes/stockmanager-service.yaml
+```
 
-2) Create docker hub account
+### 6️⃣ Access Services via Minikube
 
-3) Build the image in local -> docker build -t praveensingam1994/shopfront:latest .
-
-docker build -t praveensingam1994/productcatalogue:latest .
-
-docker build -t praveensingam1994/stockmanager:latest .
-
-4) Push the image to your docker hub -> docker push praveensingam1994/shopfront:latest 
-
-docker push praveensingam1994/productcatalogue:latest
-
-docker push praveensingam1994/stockmanager:latest
-
-5) Go to kubernetes folder and create the pods -> 
-
-kubectl apply -f shopfront-service.yaml
-
-kubectl apply -f productcatalogue-service.yaml
-
-kubectl apply -f stockmanager-service.yaml
-
-6) minikube service servicename  -> 
-
+```bash
 minikube service shopfront
 minikube service productcatalogue
 minikube service stockmanager
+```
 
-7) Hit the url in browser -> 
+### 7️⃣ Test the Services
 
-ORDER TO BUILD AND DEPLOY 
+Open the service URLs in your browser.
 
-shopfront -> productcatalogue -> stockmanager
+---
 
-Endpoint for product --> /products
-Endpoint for stock --> /stocks
+## 📚 Service Flow and API Endpoints
 
+Deployment Order:
+```
+1. Shopfront
+2. Product Catalogue
+3. Stock Manager
+```
 
+| Service            | Endpoint         |
+|--------------------|------------------|
+| Product Catalogue  | `/products`      |
+| Stock Manager      | `/stocks`        |
 
+---
+
+## 📌 Notes
+
+- Ensure Docker is running before building or pushing images.
+- Replace `naveenrroy` with your own Docker Hub username if different.
+- All Kubernetes YAML files are located in the `kubernetes/` folder.
